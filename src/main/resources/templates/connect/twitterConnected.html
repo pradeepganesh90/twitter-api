@@ -1,0 +1,205 @@
+<html>
+<head>
+<title>Hello Twitter</title>
+<style>
+.asterisk_input:after{
+content:"*"; 
+color: #f90404;
+position: absolute; 
+margin: -37px 0px 0px 0px; 
+font-size: large; 
+padding: 0 5px 0 0;}
+.asterisk_select:after{
+content:"*"; 
+color: #f90404;
+position: absolute; 
+margin: -36px 0px 0px 0px; 
+font-size: large; 
+padding: 0 5px 0 0; }
+</style>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<script src="/js/jquery.graphly.js"></script>
+<script src="/js/jquery.graphly.min.js"></script>
+<link rel="stylesheet" media="screen" href="/bootstrap/css/bootstrap.min.css" />
+<link rel="stylesheet" media="screen" href="/bootstrap/css/bootstrap-responsive.min.css" />
+<script src="/bootstrap/js/bootstrap.min.js"></script>
+<link href="http://www.jqueryscript.net/css/jquerysctipttop.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<h3>Connected to Twitter</h3>
+<div><h5>Enter Username:</h5><input type="text" id="uname" name="uname" placeholder="Username" style="margin-top: -35px; margin-left: 115px; box-sizing: content-box;"/><span class="asterisk_input"></span></div>
+<div style="margin-top: 0px;"><h5>Enter Count(Optional):</h5><input type="text" id="count" name="count" placeholder="Count" style="margin-top: -34px; margin-left: 160px; box-sizing: content-box;"/></div>
+<div style="margin-top: 2px;">
+<h5>Choose:</h5>
+<select id = "list" style="margin-top: -35px; margin-left: 61px;">
+<option value = "0">Select</option>
+<option value = "1">GetTweets</option>
+<option value = "2">GetTweetStats</option>
+</select><span class="asterisk_select"></span>
+</div>
+<input type="button" value="ClickToGetUserTweet" id="btn1" style="margin-top: 10px;"/>
+<h3>Result:</h3>
+<div id="result" style="display: none;"></div>
+<div class="span12 text-center example" id="line-graph-container" style="display: none;">
+<h2>Tweet Stats</h2>
+<canvas id="line-graph" height="400" width="900"></canvas>
+</div>
+<div th:fragment="header" xmlns:th="http://www.thymeleaf.org">
+<script type="text/javascript" th:inline="javascript">
+$(document).ready(function(){
+	$("#btn1").click(function(){
+       var uname = $("#uname").val();
+       var count = ($("#count").val() == 0)?0:$("#count").val();
+       var select = $("#list").val();
+       if(uname == "" || select == 0){
+    	   alert("Fill the Mandatory fields.");
+    	   return;
+    	   };
+      if(select == 1){ 
+    	   $.ajax({
+    	   url: "/api/list-tweets/userName/"+uname,
+    	   method: "get", 
+    	   data:{count:count},
+    	   success: function(response) {
+    	     var data = JSON.parse(response);
+    	     $("#line-graph-container").css("display","none");
+    	     var tempData = "<h4>UserTimeline Tweets:</h4>";
+    	         tempData += "<ol>";
+    	     $.each(data, function (k, v) {
+    	    	 tempData += "<li>"+v.text+"</li>";
+    	    	});
+    	     tempData += "</ol>";
+    	     $("#result").html(tempData); 
+    	     $("#result").css("display", "block");
+    	   },
+    	   error: function(response) {
+    	    $("#result").html("<span>Oops Something Went Wrong!!!</span>");
+    	   } 
+    	 });
+      }else{
+    	  $.ajax({
+       	   url: "/api/tweet-stats/userName/"+uname,
+       	   method: "get", 
+       	   data:{count:count},
+       	   success: function(response) {
+       		$("#result").css("display", "none");
+       		var data = JSON.parse(response);
+       	    var groups = [];
+       	    	 groups = getTweetStatsCount(data);
+       	  $("#line-graph-container").css("display","block");   
+       	  $(function() {
+       		var line_graph_data = {
+       	        xLabel: 'Month',
+       	        yLabel: 'Count',
+       	        points: [
+       	            'Jan',
+       	            'Feb',
+       	            'Mar',
+       	            'Apr',
+       	            'May',
+       	            'Jun',
+       	            'Jul',
+       	            'Aug',
+       	            'Sep',
+       	            'Oct',
+       	            'Nov',
+       	            'Dec'        
+       	        ],
+       	        groups: groups
+       	    }; 
+       	    
+       	    $('#line-graph').graphly({ 'data': line_graph_data, 'type': 'line', 'width': 900, 'height': 400 }); 
+       	});
+       	     
+       	     
+       	    },
+       	   error: function(response) {
+       	    $("#result").html("<span>Oops Something Went Wrong!!!</span>");
+       	   } 
+       	 });
+      }
+    });
+		
+});
+
+$(document).on("input", "#count", function() {
+    this.value = this.value.replace(/[^\d\.\-]/g,'');
+});
+
+function getTweetStatsCount(data)
+{
+	var groups = [];
+	 $.each(data, function (k, v) {
+	    	var dt = new Date(v.createdAt);
+	    	if(groups.length == 0)
+	    		{
+	    		var x = {
+   	                label: dt.getFullYear(),
+   	                values: [
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0,
+   	                    0
+   	                ]
+   	            }
+	    		groups.push(x);
+	    		}else
+	    			{
+	    			var bool = false;
+	    			$.each(groups, function (k, v) {
+	    				if(dt.getFullYear() == v.label)
+	    					{
+	    					bool = true;
+	    					return false;
+	    					}});
+	    				if(!bool){
+	    					var x = {
+	    		   	                label: dt.getFullYear(),
+	    		   	                values: [
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0,
+	    		   	                    0
+	    		   	                ]
+	    		   	            }
+	    					groups.push(x);	    					
+	    				}
+	    			
+	    			}
+	    	});
+	 
+	 $.each(data, function (k, v) {
+	    	var dt = new Date(v.createdAt);
+	    	$.each(groups, function (k, v) {
+	    	if(v.label == dt.getFullYear())
+	    		{
+	    	var m = groups[k].values[dt.getMonth()];	
+	    		m += m+1;
+	    		groups[k].values[dt.getMonth()] = m;
+	    		return false;
+	    		}
+	    	});
+	 });
+	 return groups;
+}
+
+</script> 
+</div>
+</body>
+</html>
